@@ -1,0 +1,81 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: shruthi-clmm
+  namespace: arl
+  labels:
+    username: shruthi.gowda
+    team: arl
+    project: cl
+spec:
+  ttlSecondsAfterFinished: 604800
+  activeDeadlineSeconds: 1209600
+  template:
+    spec:
+      securityContext:
+        runAsUser: 10026
+      containers:
+### JOB CONTAINER POD
+      - name: clmm
+#        image: docker-development.navinfo.eu/navinfo/research/aicv/neurai:06.22
+        image: docker-development.navinfo.eu/navinfo/research/aicv/cl_ssl:v6
+        imagePullPolicy: IfNotPresent
+#        imagePullPolicy: Always
+        resources:
+          limits:
+            nvidia.com/mig-1g.10gb: 1
+        command: ["/bin/bash"]
+        args: ["-c","python /git/continual_learning/mammoth/main.py  \
+        experiments.ntasks=10 \
+        path.data=data \
+        path.checkpoint=/output/cl_w_rkd/
+        --config /git/continual_learning/RRR/configs/cifar_cil_rrr_kd_sp_v2.yaml
+"]
+        volumeMounts:
+        - name: git-volume
+          mountPath: /git
+        - name: input
+          mountPath: /input
+        - name: output
+          mountPath: /output
+        - name: dshm
+          mountPath: /dev/shm
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: docker-credentials
+### INIT CONTAINER POD
+      initContainers:
+      - name: git-clone
+        image: alpine/git
+        args:
+          - clone
+          - -b
+          - ARL-2506-continual_aux
+          - https://$(BITBUCKET_USER):$(BITBUCKET_PASS)@bitbucket.cms.navinfo.cloud/scm/arl/mammothssl.git
+          - /git
+        env:
+          - name: BITBUCKET_USER
+            valueFrom:
+              secretKeyRef:
+               name: bitbucket-credentials
+               key: username
+          - name: BITBUCKET_PASS
+            valueFrom:
+              secretKeyRef:
+               name: bitbucket-credentials
+               key: password
+        volumeMounts:
+        - name: git-volume
+          mountPath: /git
+      volumes:
+      - name: git-volume
+        emptyDir: {}
+      - name: input
+        hostPath:
+          path: /data/input-ai/datasets/
+      - name: output
+        hostPath:
+          path: /data/output-ai/shruthi.gowda/continual
+      - name: dshm
+        emptyDir:
+          medium: Memory

@@ -1,0 +1,79 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: shruthi-ssl-cog
+  namespace: arl
+  labels:
+    username: shruthi.gowda
+    team: arl
+    project: ssl-cog
+spec:
+  ttlSecondsAfterFinished: 604800
+  activeDeadlineSeconds: 1209600
+  template:
+    spec:
+      securityContext:
+        runAsUser: 10026
+      containers:
+### JOB CONTAINER POD
+      - name: ssl-cog
+        image: docker-development.navinfo.eu/navinfo/research/aicv/cl_ssl:v4
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+        command: ["/bin/bash"]
+        args: ["-c","cd /git/ &&  python train.py \
+        --config-file  /output/configs/config.yaml "]
+
+        volumeMounts:
+        - name: git-volume
+          mountPath: /git
+        - name: input
+          mountPath: /input
+        - name: output
+          mountPath: /output
+        - name: dshm
+          mountPath: /dev/shm
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: docker-credentials
+      nodeSelector:
+        gpu-servers: aicv
+#        gpu-memory: 32GB
+### INIT CONTAINER POD
+      initContainers:
+      - name: git-clone
+        image: alpine/git
+        args:
+          - clone
+          - -b
+          - ARL-2506-continual_aux
+          - https://$(BITBUCKET_USER):$(BITBUCKET_PASS)@bitbucket.cms.navinfo.cloud/scm/arl/mammothssl.git
+          - /git
+        env:
+          - name: BITBUCKET_USER
+            valueFrom:
+              secretKeyRef:
+               name: bitbucket-credentials
+               key: username
+          - name: BITBUCKET_PASS
+            valueFrom:
+              secretKeyRef:
+               name: bitbucket-credentials
+               key: password
+        volumeMounts:
+        - name: git-volume
+          mountPath: /git
+      volumes:
+      - name: git-volume
+        emptyDir: {}
+      - name: input
+        hostPath:
+          path: /data/input-ai/datasets/
+      - name: output
+        hostPath:
+          path: /data/output-ai/shruthi.gowda/continual
+      - name: dshm
+        emptyDir:
+          medium: Memory

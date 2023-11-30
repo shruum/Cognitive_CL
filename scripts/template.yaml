@@ -1,0 +1,110 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: shruthi-clmm
+  namespace: cyber-security-gpu
+  labels:
+    username: shruthi.gowda
+    team: cyber-security
+    project: safexplain
+spec:
+  ttlSecondsAfterFinished: 604800
+  activeDeadlineSeconds: 1209600
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - prod-worker-dgx03
+                      - prod-worker-dgx02
+      tolerations:
+        - effect: NoExecute
+          key: it
+          operator: Equal
+          value: test
+      securityContext:
+        runAsUser: 10026
+      containers:
+### JOB CONTAINER POD
+      - name: clmm
+        image: docker-development.navinfo.eu/navinfo/research/aicv/cl_ssl:v4
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: "16000Mi"
+            cpu: 6000m
+          limits:
+            memory: "16000Mi"
+            cpu: 6000m
+        command: ["/bin/bash"]
+        args: ["-c","python /git/continual_learning/mammoth/main.py  \
+        experiments.ntasks=10 \
+        path.data=data \
+        path.checkpoint=/output/cl_w_rkd/
+        --config /git/continual_learning/RRR/configs/cifar_cil_rrr_kd_sp_v2.yaml
+"]
+        volumeMounts:
+        - name: git-volume
+          mountPath: /git
+        - name: input
+          mountPath: /input
+        - name: output
+          mountPath: /output
+        - name: dshm
+          mountPath: /dev/shm
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: docker-credentials
+#      nodeSelector:
+#        gpu-servers: cpu-prod
+#        gpu-memory: 32GB
+### INIT CONTAINER POD
+      initContainers:
+      - name: git-clone
+        image: alpine/git
+        resources:
+          requests:
+            memory: "16000Mi"
+            cpu: 6000m
+          limits:
+            memory: "16000Mi"
+            cpu: 6000m
+        args:
+          - clone
+          - -b
+          - ARL-2506-continual_aux
+          - https://$(BITBUCKET_USER):$(BITBUCKET_PASS)@bitbucket.cms.navinfo.cloud/scm/arl/mammothssl.git
+          - /git
+        env:
+          - name: BITBUCKET_USER
+            valueFrom:
+              secretKeyRef:
+               name: bitbucket-credentials
+               key: username
+          - name: BITBUCKET_PASS
+            valueFrom:
+              secretKeyRef:
+               name: bitbucket-credentials
+               key: password
+        volumeMounts:
+        - name: git-volume
+          mountPath: /git
+      volumes:
+      - name: git-volume
+        emptyDir: {}
+      - name: input
+        nfs:
+          server: 10.66.0.40
+          path: /input/datasets/
+      - name: output
+        nfs:
+          server: 10.66.0.40
+          path: /output/shruthi.gowda/continual
+      - name: dshm
+        emptyDir:
+          medium: Memory
