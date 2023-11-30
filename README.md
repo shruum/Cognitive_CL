@@ -1,69 +1,92 @@
-# Mammoth - An Extendible (General) Continual Learning Framework for Pytorch
 
-Official repository of [Dark Experience for General Continual Learning: a Strong, Simple Baseline](https://papers.nips.cc/paper/2020/hash/b704ea2c39778f07c617f6b7ce480e9e-Abstract.html)
 
-<p align="center">
-  <img width="112" height="112" src="seq_mnist.gif" alt="Sequential MNIST">
-  <img width="112" height="112" src="seq_cifar10.gif" alt="Sequential CIFAR-10">
-  <img width="112" height="112" src="seq_tinyimg.gif" alt="Sequential TinyImagenet">
-  <img width="112" height="112" src="perm_mnist.gif" alt="Permuted MNIST">
-  <img width="112" height="112" src="rot_mnist.gif" alt="Rotated MNIST">
-  <img width="112" height="112" src="mnist360.gif" alt="MNIST-360">
-</p>
+This is the official code for TMLR paper, **"[Dual Cognitive Architecture: Incorporating Biases and Multi-Memory Systems for Lifelong Learning](https://openreview.net/forum?id=PEyVq0hlO3)"** by Shruthi Gowda, Elahe Arani and Bahram Zonooz.
+
+## Methodology
+
+#### DUCA framework
+
+Dual Cognitive Architecture (DUCA) : The explicit module features a working model that is dedicated to learning direct sensory data. In the implicit module, the inductive bias learner encodes prior shape-related knowledge, while the semantic memory submodule consolidates information originating from the explicit module. During the inference process, a single network, specifically the semantic memory, is employed, as it contains consolidated knowledge encompassing all tasks.
+
+[//]: # (![image info]&#40;./src/DUCA.png&#41;)
+
+<img src="./src/DUCA.png"  width="656" height="550">
+
+## New Dataset - "DN4IL"
+
+We introduce a new dataset *DN4IL* for the Domain-IL setting.
+More details are provided here : https://github.com/NeurAI-Lab/DN4IL-dataset
+
+
+## Requirements
+- python==3.8.0
+- torch==1.10.0
+- torchvision==0.8.0 
 
 ## Setup
 
-+ Use `./utils/main.py` to run experiments.
-+ Use argument `--load_best_args` to use the best hyperparameters from the paper.
-+ New models can be added to the `models/` folder.
-+ New datasets can be added to the `datasets/` folder.
+DUCA is trained and tested on four different datasets using ResNet18 architecture. The learning rate is set to 0.03, batch
+size to 32, and epochs to 50 respectively for all the datasets. The decay factor d is always set to 0.999.
 
-## Models
+[//]: # (![image info]&#40;./src/hyper.png&#41;)
+<img src="./src/hyper.png"  width="650" height="125">
 
-+ Gradient Episodic Memory (GEM)
-+ A-GEM
-+ A-GEM with Reservoir (A-GEM-R)
-+ Experience Replay (ER)
-+ Meta-Experience Replay (MER)
-+ Function Distance Regularization (FDR)
-+ Greedy gradient-based Sample Selection (GSS)
-+ Hindsight Anchor Learning (HAL)
-+ Incremental Classifier and Representation Learning (iCaRL)
-+ online Elastic Weight Consolidation (oEWC)
-+ Synaptic Intelligence
-+ Learning without Forgetting
-+ Progressive Neural Networks
-+ Dark Experience Replay (DER)
-+ Dark Experience Replay++ (DER++)
+## Running
 
-## Datasets
-
-**Class-Il / Task-IL settings**
-
-+ Sequential MNIST
-+ Sequential CIFAR-10
-+ Sequential Tiny ImageNet
-
-**Domain-IL settings**
-
-+ Permuted MNIST
-+ Rotated MNIST
-
-**General Continual Learning setting**
-
-+ MNIST-360
-
-## Citing this work
-
+#### Train DUCA - DN4IL 
 ```
-@inproceedings{buzzega2020dark,
- author = {Buzzega, Pietro and Boschini, Matteo and Porrello, Angelo and Abati, Davide and Calderara, Simone},
- booktitle = {Advances in Neural Information Processing Systems},
- editor = {H. Larochelle and M. Ranzato and R. Hadsell and M. F. Balcan and H. Lin},
- pages = {15920--15930},
- publisher = {Curran Associates, Inc.},
- title = {Dark Experience for General Continual Learning: a Strong, Simple Baseline},
- volume = {33},
- year = {2020}
+best_params_dn4il = {
+    200: {'lr': 0.05,
+          'batch_size': 32,
+          'n_epochs': 50,
+          'aux': 'shape',
+          'img_size': 64,
+          'shape_filter': 'sobel',
+          'lamda': 0.1,
+          'gamma': 0.01,
+          'd': 0.999,
+          'r': 0.06
+          },
+    500: {'lr': 0.05,
+          'batch_size': 32,
+          'n_epochs': 50,
+          'aux': 'shape',
+          'img_size': 64,
+          'shape_filter': 'sobel',
+          'lamda': 0.1,
+          'gamma': 0.01,
+          'd': 0.999,
+          'r':0.08
+          },
 }
 ```
+
+```
+buffer_size = 200 (or 500)
+train_params = best_params_dn4il[buffer_size]
+python main.py 
+    --experiment_id domainIL_exp_dn4il_dataset \
+    --seed 0 \
+    --model duca \
+    --dataset dn4il \
+    --buffer_size {buffer_size} \
+    --aux {train_params['aux']} \
+    --lr {train_params['lr']} \
+    --n_epochs {train_params['n_epochs']} \
+    --img_size {train_params['img_size']} \
+    --shape_filter {train_params['shape_filter']} \
+    --batch_size {train_params['batch_size']} \
+    --output_dir /output/ \
+    --loss_wt {train_params['lamda']} {train_params['gamma']}
+    --ema_alpha {d} \
+    --ema_update_freq {r} \
+    --tensorboard \
+    --csv_log \
+```
+
+## Cite Our Work
+
+## License
+
+This project is licensed under the terms of the MIT license.
+
